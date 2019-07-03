@@ -11,17 +11,14 @@ import (
 
 func handleRequest(conn net.Conn) {
 	fmt.Printf("Serving %v\n", conn.RemoteAddr())
+	scanner := bufio.NewScanner(conn)
 	for {
-		netData, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading:", err)
-		}
-		connInput := string(netData)
-		fmt.Println(connInput)
-		if connInput == "STOP" {
+		if ok := scanner.Scan(); !ok {
 			break
 		}
+		fmt.Println(scanner.Text())
 	}
+	fmt.Println("scanning ended")
 	conn.Close()
 }
 
