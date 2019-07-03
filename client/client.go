@@ -9,14 +9,43 @@ import (
 	"github.com/TheBarn/tinyIRC/utils"
 )
 
+const (
+	intro = `Welcome to this tiny IRC client
+
+Commands:
+------------------------------
+/nick <nickname>
+/list
+/join <#channel>
+/leave <#channel>
+/who
+/msg <nickname> <message>
+------------------------------
+
+First Enter your nickname using the /nick command:
+`
+)
+
+func getServerMessages(conn net.Conn) {
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		fmt.Println(scanner.Text())
+		fmt.Printf("> ")
+	}
+}
+
 func launchPrompt(conn net.Conn) {
-	fmt.Println("Welcome to the tiny IRC client")
-	fmt.Printf("------------------------------\n\n")
+	fmt.Printf(intro)
 	fmt.Printf("> ")
 	scanner := bufio.NewScanner(os.Stdin)
+	go getServerMessages(conn)
 	for scanner.Scan() {
 		fmt.Printf("> ")
-		conn.Write([]byte(scanner.Text() + "\n"))
+		err := utils.SendBytes(conn, scanner.Text())
+		if err != nil {
+			fmt.Println("Server is down.", err)
+			os.Exit(1)
+		}
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	defaultPort = "5555"
+	defaultPort = "6667"
 )
 
 //ChoosePort will return the chosen port in args or the default port
