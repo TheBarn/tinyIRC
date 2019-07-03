@@ -1,13 +1,24 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
-	"time"
 
 	"github.com/TheBarn/tinyIRC/utils"
 )
+
+func launchPrompt(conn net.Conn) {
+	fmt.Println("Welcome to the tiny IRC client")
+	fmt.Printf("------------------------------\n\n")
+	fmt.Printf("> ")
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		fmt.Printf("> ")
+		conn.Write([]byte(scanner.Text() + "\n"))
+	}
+}
 
 func main() {
 	port := utils.ChoosePort()
@@ -17,6 +28,5 @@ func main() {
 		os.Exit(1)
 	}
 	defer conn.Close()
-	conn.Write([]byte("HEY FROM SERVER\n"))
-	time.Sleep(5 * time.Second)
+	launchPrompt(conn)
 }
