@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-)
 
-const (
-	defaultPort = "5555"
+	"github.com/TheBarn/tinyIRC/utils"
 )
 
 func handleRequest(conn net.Conn) {
@@ -28,17 +26,7 @@ func handleRequest(conn net.Conn) {
 }
 
 func main() {
-	port := defaultPort
-	args := os.Args
-	switch len(args) {
-	case 1:
-		fmt.Printf("Using default port %v\n", defaultPort)
-	case 2:
-		port = args[1]
-		fmt.Printf("Using port %v\n", port)
-	case 3:
-		fmt.Printf("Usage: ./tinyIRC [port]\n")
-	}
+	port := utils.ChoosePort()
 	l, err := net.Listen("tcp4", "localhost:"+port)
 	if err != nil {
 		fmt.Println("Error listening:", err)
