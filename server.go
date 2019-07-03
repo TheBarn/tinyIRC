@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"os"
@@ -8,18 +9,21 @@ import (
 
 const (
 	defaultPort = "5555"
-	buffSize    = 1024
 )
 
 func handleRequest(conn net.Conn) {
-	fmt.Printf("Connection: %v\n", conn)
-	buf := make([]byte, buffSize)
-	_, err := conn.Read(buf)
-	if err != nil {
-		fmt.Println("Error reading:", err)
+	fmt.Printf("Serving %v\n", conn.RemoteAddr())
+	for {
+		netData, err := bufio.NewReader(conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("Error reading:", err)
+		}
+		connInput := string(netData)
+		fmt.Println(connInput)
+		if connInput == "STOP" {
+			break
+		}
 	}
-	fmt.Println(string(buf))
-	conn.Write([]byte("Message received!"))
 	conn.Close()
 }
 
