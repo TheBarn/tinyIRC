@@ -29,15 +29,18 @@ First Enter your nickname using the /nick command:
 )
 
 type user struct {
-	nick string
+	nick    string
+	channel string
 }
 
 func printPrompt(user *user) {
-	if user.nick != "" {
-		fmt.Printf("%s > ", user.nick)
-	} else {
-		fmt.Printf("> ")
+	if user.channel != "" {
+		fmt.Printf("%s ", user.channel)
 	}
+	if user.nick != "" {
+		fmt.Printf("%s ", user.nick)
+	}
+	fmt.Printf("> ")
 }
 
 func printServerMsg(msg string) {
@@ -50,6 +53,10 @@ func handleServerMessage(msg string, user *user) {
 	case "/nick":
 		if len(args) == 2 {
 			user.nick = args[1]
+		}
+	case "/join":
+		if len(args) == 2 {
+			user.channel = args[1]
 		}
 	default:
 		printServerMsg(msg)

@@ -11,9 +11,20 @@ import (
 	"github.com/TheBarn/tinyIRC/utils"
 )
 
+type server struct {
+	channels []string
+}
+
 type user struct {
-	conn net.Conn
-	nick string
+	conn    net.Conn
+	nick    string
+	channel string
+}
+
+func newServer() server {
+	server := server{}
+	server.channels = []string{"#welcome", "#IRChelp", "#golang"}
+	return server
 }
 
 func handleChanMessage(user *user, msg string) {
@@ -21,6 +32,7 @@ func handleChanMessage(user *user, msg string) {
 }
 
 func checkNickname(nick string) bool {
+	//TOCHECK no null string!!
 	if len(nick) > 9 {
 		return false
 	}
@@ -31,7 +43,7 @@ func checkNickname(nick string) bool {
 	return true
 }
 
-func handleCommand(user *user, cmd string) {
+func handleCommand(server *server, user *user, cmd string) {
 	if cmd == "" {
 		return
 	}
@@ -43,7 +55,7 @@ func handleCommand(user *user, cmd string) {
 	switch args[0] {
 	case "/nick":
 		if len(args) != 2 {
-			utils.SendBytes(user.conn, "command /nick takes one nickname as argument")
+			utils.SendBytes(user.conn, "usage: /nick nickname")
 			return
 		}
 		nick := args[1]
@@ -55,24 +67,46 @@ func handleCommand(user *user, cmd string) {
 		user.nick = nick
 		utils.SendBytes(user.conn, "/nick "+nick)
 		utils.SendBytes(user.conn, "your nickame was changed to "+nick)
+	case "/join":
+		if len(args) != 2 {
+			utils.SendBytes(user.conn, "usage: /join #channel")
+			return
+		}
+		channel := args[1]
+		if channel[0] != '#' {
+			utils.SendBytes(user.conn, "channel names start by '#'")
+			return
+		}
+		ok := utils.StringInSlice(channel, server.channels)
+		if !ok {
+			utils.SendBytes(user.conn, "no channel by this name, try /list")
+			return
+		}
+		if user.nick == "" {
+			utils.SendBytes(user.conn, "you should pick a nickname first")
+		}
+		user.channel = channel
+		utils.SendBytes(user.conn, "/join "+channel)
+		utils.SendBytes(user.conn, fmt.Sprintf("welcome in channel %s!", channel))
+	case "/list":
+		utils.SendBytes(user.conn, fmt.Sprintf("%v", server.channels))
 	}
 }
 
-func readCommand(user *user) {
-	fmt.Println("READ", user)
+func readCommand(server *server, user *user) {
 	scanner := bufio.NewScanner(user.conn)
 	for {
 		if ok := scanner.Scan(); !ok {
 			break
 		}
-		go handleCommand(user, string(scanner.Text()))
+		go handleCommand(server, user, string(scanner.Text()))
 	}
 }
 
-func handleRequest(conn net.Conn) {
+func handleRequest(server *server, conn net.Conn) {
 	fmt.Printf("Serving %v\n", conn.RemoteAddr())
 	user := user{conn: conn}
-	readCommand(&user)
+	readCommand(server, &user)
 	fmt.Println("close connection", user)
 	conn.Close()
 }
@@ -85,12 +119,13 @@ func main() {
 		os.Exit(1)
 	}
 	defer l.Close()
+	server := newServer()
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			fmt.Println("Error accepting:", err)
 			os.Exit(1)
 		}
-		go handleRequest(conn)
+		go handleRequest(&server, conn)
 	}
 }
