@@ -12,18 +12,26 @@ import (
 )
 
 type server struct {
-	channels []string
+	channels []*channel
+}
+
+type channel struct {
+	name  string
+	users []*user
 }
 
 type user struct {
 	conn    net.Conn
 	nick    string
-	channel string
+	channel *channel
 }
 
 func newServer() server {
 	server := server{}
-	server.channels = []string{"#welcome", "#IRChelp", "#golang"}
+	channelNames := []string{"#welcome", "#IRChelp", "#golang"}
+	for _, channelName := range channelNames {
+		server.channels = append(server.channels, &channel{name: channelName})
+	}
 	return server
 }
 
@@ -41,6 +49,15 @@ func checkNickname(nick string) bool {
 		return false
 	}
 	return true
+}
+
+func checkChannel(server *server, channelName string) (*channel, bool) {
+	for _, channel := range server.channels {
+		if channel.name == channelName {
+			return channel, true
+		}
+	}
+	return nil, false
 }
 
 func handleCommand(server *server, user *user, cmd string) {
@@ -72,24 +89,39 @@ func handleCommand(server *server, user *user, cmd string) {
 			utils.SendBytes(user.conn, "usage: /join #channel")
 			return
 		}
-		channel := args[1]
-		if channel[0] != '#' {
+		channelName := args[1]
+		if channelName[0] != '#' {
 			utils.SendBytes(user.conn, "channel names start by '#'")
 			return
 		}
-		ok := utils.StringInSlice(channel, server.channels)
+		channel, ok := checkChannel(server, channelName)
 		if !ok {
 			utils.SendBytes(user.conn, "no channel by this name, try /list")
 			return
 		}
 		if user.nick == "" {
 			utils.SendBytes(user.conn, "you should pick a nickname first")
+			return
 		}
 		user.channel = channel
-		utils.SendBytes(user.conn, "/join "+channel)
-		utils.SendBytes(user.conn, fmt.Sprintf("welcome in channel %s!", channel))
+		channel.users = append(channel.users, user)
+		utils.SendBytes(user.conn, "/join "+channelName)
+		utils.SendBytes(user.conn, fmt.Sprintf("welcome in channel %s!", channelName))
 	case "/list":
-		utils.SendBytes(user.conn, fmt.Sprintf("%v", server.channels))
+		channelNames := []string{}
+		for _, channel := range server.channels {
+			channelNames = append(channelNames, channel.name)
+		}
+		utils.SendBytes(user.conn, fmt.Sprintf("%v", channelNames))
+	case "/leave":
+		if user.channel == nil {
+			utils.SendBytes(user.conn, "you do not belong to any channel")
+			return
+		}
+		channelName := user.channel.name
+		user.channel = nil
+		utils.SendBytes(user.conn, "/leave")
+		utils.SendBytes(user.conn, "your left channel "+channelName)
 	}
 }
 

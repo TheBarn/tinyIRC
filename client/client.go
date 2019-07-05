@@ -19,7 +19,7 @@ Commands:
 /nick <nickname>
 /list
 /join <#channel>
-/leave <#channel>
+/leave
 /who
 /msg <nickname> <message>
 ------------------------------
@@ -58,6 +58,8 @@ func handleServerMessage(msg string, user *user) {
 		if len(args) == 2 {
 			user.channel = args[1]
 		}
+	case "/leave":
+		user.channel = ""
 	default:
 		printServerMsg(msg)
 		printPrompt(user)
