@@ -51,7 +51,7 @@ func checkNickname(nick string) bool {
 	return true
 }
 
-func checkChannel(server *server, channelName string) (*channel, bool) {
+func pickChannel(server *server, channelName string) (*channel, bool) {
 	for _, channel := range server.channels {
 		if channel.name == channelName {
 			return channel, true
@@ -94,7 +94,7 @@ func handleCommand(server *server, user *user, cmd string) {
 			utils.SendBytes(user.conn, "channel names start by '#'")
 			return
 		}
-		channel, ok := checkChannel(server, channelName)
+		channel, ok := pickChannel(server, channelName)
 		if !ok {
 			utils.SendBytes(user.conn, "no channel by this name, try /list")
 			return
@@ -122,6 +122,20 @@ func handleCommand(server *server, user *user, cmd string) {
 		user.channel = nil
 		utils.SendBytes(user.conn, "/leave")
 		utils.SendBytes(user.conn, "your left channel "+channelName)
+	case "/who":
+		if user.channel == nil {
+			utils.SendBytes(user.conn, "you do not belong to any channel")
+			return
+		}
+		channel, ok := pickChannel(server, user.channel.name)
+		if !ok {
+			fmt.Println("error during /who")
+		}
+		nicknames := []string{}
+		for _, user := range channel.users {
+			nicknames = append(nicknames, user.nick)
+		}
+		utils.SendBytes(user.conn, fmt.Sprintf("%v", nicknames))
 	}
 }
 
