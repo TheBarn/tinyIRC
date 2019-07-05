@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/TheBarn/tinyIRC/utils"
 )
@@ -26,21 +27,46 @@ First Enter your nickname using the /nick command:
 `
 )
 
-func getServerMessages(conn net.Conn) {
-	scanner := bufio.NewScanner(conn)
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
+type user struct {
+	nick string
+}
+
+func printPrompt(user *user) {
+	if user.nick != "" {
+		fmt.Printf("%s > ", user.nick)
+	} else {
 		fmt.Printf("> ")
 	}
 }
 
-func launchPrompt(conn net.Conn) {
-	fmt.Printf(intro)
-	fmt.Printf("> ")
-	scanner := bufio.NewScanner(os.Stdin)
-	go getServerMessages(conn)
+func handleServerMessage(msg string, user *user) {
+	args := strings.Fields(msg)
+	switch args[0] {
+	case "/nick":
+		if len(args) == 2 {
+			user.nick = args[1]
+		}
+	default:
+		fmt.Println("\n\033[0;31m" + msg + "\033[0m")
+		printPrompt(user)
+	}
+}
+
+func getServerMessages(conn net.Conn, user *user) {
+	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		fmt.Printf("> ")
+		handleServerMessage(scanner.Text(), user)
+	}
+}
+
+func launchPrompt(conn net.Conn) {
+	user := user{}
+	fmt.Printf(intro)
+	printPrompt(&user)
+	scanner := bufio.NewScanner(os.Stdin)
+	go getServerMessages(conn, &user)
+	for scanner.Scan() {
+		printPrompt(&user)
 		err := utils.SendBytes(conn, scanner.Text())
 		if err != nil {
 			fmt.Println("Server is down.", err)

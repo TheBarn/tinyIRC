@@ -43,7 +43,7 @@ func handleCommand(user *user, cmd string) {
 	switch args[0] {
 	case "/nick":
 		if len(args) != 2 {
-			utils.SendBytes(user.conn, "/nick takes one nickname as argument")
+			utils.SendBytes(user.conn, "command /nick takes one nickname as argument")
 			return
 		}
 		nick := args[1]
@@ -53,7 +53,8 @@ func handleCommand(user *user, cmd string) {
 			return
 		}
 		user.nick = nick
-		utils.SendBytes(user.conn, "your nickame was changes to "+nick)
+		utils.SendBytes(user.conn, "/nick "+nick)
+		utils.SendBytes(user.conn, "your nickame was changed to "+nick)
 	}
 }
 
