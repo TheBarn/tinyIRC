@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/TheBarn/tinyIRC/utils"
 )
@@ -39,6 +40,10 @@ func printPrompt(user *user) {
 	}
 }
 
+func printServerMsg(msg string) {
+	fmt.Println("\n\033[0;31m" + msg + "\033[0m")
+}
+
 func handleServerMessage(msg string, user *user) {
 	args := strings.Fields(msg)
 	switch args[0] {
@@ -47,7 +52,7 @@ func handleServerMessage(msg string, user *user) {
 			user.nick = args[1]
 		}
 	default:
-		fmt.Println("\n\033[0;31m" + msg + "\033[0m")
+		printServerMsg(msg)
 		printPrompt(user)
 	}
 }
@@ -59,17 +64,29 @@ func getServerMessages(conn net.Conn, user *user) {
 	}
 }
 
+func pingServer(conn net.Conn) {
+	for {
+		time.Sleep(time.Second)
+		err := utils.SendBytes(conn, "")
+		if err != nil {
+			printServerMsg("Server is down")
+			os.Exit(1)
+		}
+	}
+}
+
 func launchPrompt(conn net.Conn) {
 	user := user{}
 	fmt.Printf(intro)
 	printPrompt(&user)
 	scanner := bufio.NewScanner(os.Stdin)
 	go getServerMessages(conn, &user)
+	go pingServer(conn)
 	for scanner.Scan() {
 		printPrompt(&user)
 		err := utils.SendBytes(conn, scanner.Text())
 		if err != nil {
-			fmt.Println("Server is down.", err)
+			printServerMsg("Server is down")
 			os.Exit(1)
 		}
 	}
