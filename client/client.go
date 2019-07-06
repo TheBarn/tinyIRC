@@ -34,6 +34,7 @@ type user struct {
 }
 
 func printPrompt(user *user) {
+	fmt.Printf("\r\033[K")
 	if user.channel != "" {
 		fmt.Printf("%s ", user.channel)
 	}
@@ -43,8 +44,15 @@ func printPrompt(user *user) {
 	fmt.Printf("> ")
 }
 
-func printServerMsg(msg string) {
-	fmt.Println("\n\033[0;31m" + msg + "\033[0m")
+func printMsg(user *user, msg string, fromServer bool) {
+	fmt.Printf("\r\033[K\n\033[2A")
+	if fromServer {
+		fmt.Printf("\033[0;31m" + msg + "\033[0m")
+	} else {
+		fmt.Printf(msg)
+	}
+	fmt.Printf("\n\n")
+	printPrompt(user)
 }
 
 func handleServerMessage(msg string, user *user) {
@@ -61,8 +69,7 @@ func handleServerMessage(msg string, user *user) {
 	case "/leave":
 		user.channel = ""
 	default:
-		printServerMsg(msg)
-		printPrompt(user)
+		printMsg(user, msg, true)
 	}
 }
 
@@ -73,31 +80,41 @@ func getServerMessages(conn net.Conn, user *user) {
 	}
 }
 
-func pingServer(conn net.Conn) {
+func pingServer(conn net.Conn, user *user) {
 	for {
 		time.Sleep(time.Second)
 		err := utils.SendBytes(conn, "")
 		if err != nil {
-			printServerMsg("Server is down")
+			printMsg(user, "Server is down", true)
 			os.Exit(1)
 		}
 	}
 }
 
+func handleInput(user *user, conn net.Conn, input string) error {
+	if input != "" && input[0] != '/' {
+		printMsg(user, input, false)
+	}
+	err := utils.SendBytes(conn, input)
+	return err
+}
+
 func launchPrompt(conn net.Conn) {
 	user := user{}
+	go getServerMessages(conn, &user)
+	go pingServer(conn, &user)
 	fmt.Printf(intro)
 	printPrompt(&user)
 	scanner := bufio.NewScanner(os.Stdin)
-	go getServerMessages(conn, &user)
-	go pingServer(conn)
 	for scanner.Scan() {
-		printPrompt(&user)
-		err := utils.SendBytes(conn, scanner.Text())
+		input := scanner.Text()
+		fmt.Printf("\r\033[K\033[1A\033[K\n")
+		err := handleInput(&user, conn, input)
 		if err != nil {
-			printServerMsg("Server is down")
+			printMsg(&user, "Server is down", true)
 			os.Exit(1)
 		}
+		printPrompt(&user)
 	}
 }
 
