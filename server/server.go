@@ -60,6 +60,20 @@ func pickChannel(server *server, channelName string) (*channel, bool) {
 	return nil, false
 }
 
+func removeUserFromChannel(user *user) {
+	channel := user.channel
+	if channel == nil {
+		return
+	}
+	chanUsers := channel.users
+	for idx, usr := range chanUsers {
+		if usr.conn == user.conn {
+			chanUsers[idx] = chanUsers[len(chanUsers)-1]
+			channel.users = chanUsers[:len(chanUsers)-1]
+		}
+	}
+}
+
 func handleCommand(server *server, user *user, cmd string) {
 	if cmd == "" {
 		return
@@ -118,10 +132,11 @@ func handleCommand(server *server, user *user, cmd string) {
 			utils.SendBytes(user.conn, "you do not belong to any channel")
 			return
 		}
+		removeUserFromChannel(user)
 		channelName := user.channel.name
 		user.channel = nil
 		utils.SendBytes(user.conn, "/leave")
-		utils.SendBytes(user.conn, "your left channel "+channelName)
+		utils.SendBytes(user.conn, "you left channel "+channelName)
 	case "/who":
 		if user.channel == nil {
 			utils.SendBytes(user.conn, "you do not belong to any channel")
