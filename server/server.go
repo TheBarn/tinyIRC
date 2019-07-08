@@ -44,7 +44,8 @@ func handleChanMessage(server *server, user *user, msg string) {
 	}
 	for _, usr := range server.users {
 		if usr.channel == channel {
-			utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s %s: %s", channel.name, user.nick, msg))
+			message := fmt.Sprintf("/msg %s %s : %s", channel.name, user.nick, msg)
+			utils.SendBytes(usr.conn, message)
 		}
 	}
 }
@@ -200,6 +201,7 @@ func handleRequest(server *server, conn net.Conn) {
 	readCommand(server, &user)
 	fmt.Println("close connection", user)
 	removeUserFromServer(server, &user)
+	//TO DO "has left his channel"
 	conn.Close()
 }
 

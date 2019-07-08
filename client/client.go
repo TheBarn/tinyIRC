@@ -25,6 +25,7 @@ Commands:
 ------------------------------
 
 First Enter your nickname using the /nick command:
+
 `
 )
 
@@ -56,6 +57,11 @@ func handleServerMessage(msg string, user *user) {
 	switch args[0] {
 	case "/msg":
 		message := msg[5:]
+		if len(args) > 2 && args[2] != user.nick {
+			//			fmt.Printf("'%s' '%s'\n", user.nick, args[2])
+			//			fmt.Println("COMP", user.nick, args[2])
+			message = "\n" + message
+		}
 		printMsg(user, message)
 	case "/nick":
 		if len(args) == 2 {
