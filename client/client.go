@@ -44,13 +44,9 @@ func printPrompt(user *user) {
 	fmt.Printf("> ")
 }
 
-func printMsg(user *user, msg string, fromServer bool) {
+func printMsg(user *user, msg string) {
 	fmt.Printf("\r\033[K\n\033[2A")
-	if fromServer {
-		fmt.Printf("\033[0;31m" + msg + "\033[0m")
-	} else {
-		fmt.Printf(msg)
-	}
+	fmt.Printf(msg)
 	fmt.Printf("\n\n")
 	printPrompt(user)
 }
@@ -58,18 +54,25 @@ func printMsg(user *user, msg string, fromServer bool) {
 func handleServerMessage(msg string, user *user) {
 	args := strings.Fields(msg)
 	switch args[0] {
+	case "/msg":
+		message := msg[5:]
+		printMsg(user, message)
 	case "/nick":
 		if len(args) == 2 {
 			user.nick = args[1]
+			printPrompt(user)
 		}
 	case "/join":
 		if len(args) == 2 {
 			user.channel = args[1]
+			printPrompt(user)
 		}
 	case "/leave":
 		user.channel = ""
-	default:
-		printMsg(user, msg, true)
+		printPrompt(user)
+	case "/warning":
+		message := "\033[0;31m" + msg[9:] + "\033[0m"
+		printMsg(user, message)
 	}
 }
 
@@ -85,16 +88,16 @@ func pingServer(conn net.Conn, user *user) {
 		time.Sleep(time.Second)
 		err := utils.SendBytes(conn, "")
 		if err != nil {
-			printMsg(user, "Server is down", true)
+			printMsg(user, "Server is down")
 			os.Exit(1)
 		}
 	}
 }
 
 func handleInput(user *user, conn net.Conn, input string) error {
-	if input != "" && input[0] != '/' {
-		printMsg(user, input, false)
-	}
+	//	if input != "" && input[0] != '/' {
+	//		printMsg(user, input)
+	//	}
 	err := utils.SendBytes(conn, input)
 	return err
 }
@@ -111,7 +114,7 @@ func launchPrompt(conn net.Conn) {
 		fmt.Printf("\r\033[K\033[1A\033[K\n")
 		err := handleInput(&user, conn, input)
 		if err != nil {
-			printMsg(&user, "Server is down", true)
+			printMsg(&user, "Server is down")
 			os.Exit(1)
 		}
 		printPrompt(&user)

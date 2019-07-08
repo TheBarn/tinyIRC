@@ -13,6 +13,7 @@ import (
 
 type server struct {
 	channels []*channel
+	users    []*user
 }
 
 type channel struct {
@@ -35,8 +36,17 @@ func newServer() server {
 	return server
 }
 
-func handleChanMessage(user *user, msg string) {
-	fmt.Println("Message:", msg)
+func handleChanMessage(server *server, user *user, msg string) {
+	channel := user.channel
+	if channel == nil {
+		utils.SendBytes(user.conn, "/warning You are not registered on a channel")
+		return
+	}
+	for _, usr := range server.users {
+		if usr.channel == channel {
+			utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s %s: %s", channel.name, usr.nick, msg))
+		}
+	}
 }
 
 func checkNickname(nick string) bool {
@@ -79,48 +89,48 @@ func handleCommand(server *server, user *user, cmd string) {
 		return
 	}
 	if cmd[0] != '/' {
-		handleChanMessage(user, cmd)
+		handleChanMessage(server, user, cmd)
 		return
 	}
 	args := strings.Fields(cmd)
 	switch args[0] {
 	case "/nick":
 		if len(args) != 2 {
-			utils.SendBytes(user.conn, "usage: /nick nickname")
+			utils.SendBytes(user.conn, "/warning usage: /nick nickname")
 			return
 		}
 		nick := args[1]
 		ok := checkNickname(nick)
 		if !ok {
-			utils.SendBytes(user.conn, "nickname should have only 9 characters in [a-zA-Z0-9_]")
+			utils.SendBytes(user.conn, "/warning nickname should have only 9 characters in [a-zA-Z0-9_]")
 			return
 		}
 		user.nick = nick
 		utils.SendBytes(user.conn, "/nick "+nick)
-		utils.SendBytes(user.conn, "your nickame was changed to "+nick)
+		utils.SendBytes(user.conn, "/warning your nickame was changed to "+nick)
 	case "/join":
 		if len(args) != 2 {
-			utils.SendBytes(user.conn, "usage: /join #channel")
+			utils.SendBytes(user.conn, "/warning usage: /join #channel")
 			return
 		}
 		channelName := args[1]
 		if channelName[0] != '#' {
-			utils.SendBytes(user.conn, "channel names start by '#'")
+			utils.SendBytes(user.conn, "/warning channel names start by '#'")
 			return
 		}
 		channel, ok := pickChannel(server, channelName)
 		if !ok {
-			utils.SendBytes(user.conn, "no channel by this name, try /list")
+			utils.SendBytes(user.conn, "/warning no channel by this name, try /list")
 			return
 		}
 		if user.nick == "" {
-			utils.SendBytes(user.conn, "you should pick a nickname first")
+			utils.SendBytes(user.conn, "/warning you should pick a nickname first")
 			return
 		}
 		user.channel = channel
 		channel.users = append(channel.users, user)
 		utils.SendBytes(user.conn, "/join "+channelName)
-		utils.SendBytes(user.conn, fmt.Sprintf("welcome in channel %s!", channelName))
+		utils.SendBytes(user.conn, fmt.Sprintf("/warning welcome in channel %s!", channelName))
 	case "/list":
 		channelNames := []string{}
 		for _, channel := range server.channels {
@@ -129,17 +139,17 @@ func handleCommand(server *server, user *user, cmd string) {
 		utils.SendBytes(user.conn, fmt.Sprintf("%v", channelNames))
 	case "/leave":
 		if user.channel == nil {
-			utils.SendBytes(user.conn, "you do not belong to any channel")
+			utils.SendBytes(user.conn, "/warning you do not belong to any channel")
 			return
 		}
 		removeUserFromChannel(user)
 		channelName := user.channel.name
 		user.channel = nil
 		utils.SendBytes(user.conn, "/leave")
-		utils.SendBytes(user.conn, "you left channel "+channelName)
+		utils.SendBytes(user.conn, "/warning you left channel "+channelName)
 	case "/who":
 		if user.channel == nil {
-			utils.SendBytes(user.conn, "you do not belong to any channel")
+			utils.SendBytes(user.conn, "/warning you do not belong to any channel")
 			return
 		}
 		channel, ok := pickChannel(server, user.channel.name)
@@ -167,6 +177,7 @@ func readCommand(server *server, user *user) {
 func handleRequest(server *server, conn net.Conn) {
 	fmt.Printf("Serving %v\n", conn.RemoteAddr())
 	user := user{conn: conn}
+	server.users = append(server.users, &user)
 	readCommand(server, &user)
 	fmt.Println("close connection", user)
 	conn.Close()
