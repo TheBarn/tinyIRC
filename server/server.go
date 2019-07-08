@@ -44,7 +44,7 @@ func handleChanMessage(server *server, user *user, msg string) {
 	}
 	for _, usr := range server.users {
 		if usr.channel == channel {
-			utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s %s: %s", channel.name, usr.nick, msg))
+			utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s %s: %s", channel.name, user.nick, msg))
 		}
 	}
 }
@@ -80,6 +80,15 @@ func removeUserFromChannel(user *user) {
 		if usr.conn == user.conn {
 			chanUsers[idx] = chanUsers[len(chanUsers)-1]
 			channel.users = chanUsers[:len(chanUsers)-1]
+		}
+	}
+}
+
+func removeUserFromServer(server *server, user *user) {
+	for idx, usr := range server.users {
+		if usr == user {
+			server.users[idx] = server.users[len(server.users)-1]
+			server.users = server.users[:len(server.users)-1]
 		}
 	}
 }
@@ -131,6 +140,11 @@ func handleCommand(server *server, user *user, cmd string) {
 		channel.users = append(channel.users, user)
 		utils.SendBytes(user.conn, "/join "+channelName)
 		utils.SendBytes(user.conn, fmt.Sprintf("/warning welcome in channel %s!", channelName))
+		for _, usr := range server.users {
+			if usr.channel == channel && usr != user {
+				utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s : %s has joined the channel", channel.name, user.nick))
+			}
+		}
 	case "/list":
 		channelNames := []string{}
 		for _, channel := range server.channels {
@@ -143,10 +157,15 @@ func handleCommand(server *server, user *user, cmd string) {
 			return
 		}
 		removeUserFromChannel(user)
-		channelName := user.channel.name
+		channel := user.channel
 		user.channel = nil
 		utils.SendBytes(user.conn, "/leave")
-		utils.SendBytes(user.conn, "/warning you left channel "+channelName)
+		utils.SendBytes(user.conn, "/warning you left channel "+channel.name)
+		for _, usr := range server.users {
+			if usr.channel == channel {
+				utils.SendBytes(usr.conn, fmt.Sprintf("/msg %s : %s has left the channel", channel.name, user.nick))
+			}
+		}
 	case "/who":
 		if user.channel == nil {
 			utils.SendBytes(user.conn, "/warning you do not belong to any channel")
@@ -180,6 +199,7 @@ func handleRequest(server *server, conn net.Conn) {
 	server.users = append(server.users, &user)
 	readCommand(server, &user)
 	fmt.Println("close connection", user)
+	removeUserFromServer(server, &user)
 	conn.Close()
 }
 
